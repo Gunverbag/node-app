@@ -1,0 +1,19 @@
+<h1>Заказы</h1>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Пользователь</th>
+            <th>Продукт</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% orders.forEach(order => { %>
+            <tr>
+                <td><%= order.id %></td>
+                <td><%= order.user_name %></td>
+                <td><%= order.product %></td>
+            </tr>
+        <% }) %>
+    </tbody>
+</table>

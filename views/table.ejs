@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><%= table %> Table</title>
+</head>
+<body>
+    <h1>Table: <%= table %></h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <% if (data.length > 0) { %>
+                    <% Object.keys(data[0]).forEach(key => { %>
+                        <th><%= key %></th>
+                    <% }) %>
+                    <th>Actions</th>
+                <% } %>
+            </tr>
+        </thead>
+        <tbody>
+            <% data.forEach(row => { %>
+                <tr>
+                    <% Object.values(row).forEach(value => { %>
+                        <td><%= value %></td>
+                    <% }) %>
+                    <td>
+                        <a href="/edit/<%= table %>/<%= row.id %>">Edit</a>
+                        <a href="/delete/<%= table %>/<%= row.id %>">Delete</a>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+    <a href="/add/<%= table %>">Add New Entry</a>
+</body>
+</html>
