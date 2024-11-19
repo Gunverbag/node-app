@@ -216,24 +216,33 @@ class App {
       this.db.all(query, [], (err, rows) => {
         if (err) {
           console.error(err);
-          res.status(500).send('Ошибка при получении данных категорий');
+          res.status(500).send('Ошибка при получении категорий');
         } else {
-          res.render('categories', { categories: rows });
+          // Группируем продукты по категориям
+          const categories = rows.reduce((acc, row) => {
+            const { categoryId, categoryName, productId, productName } = row;
+            if (!acc[categoryId]) {
+              acc[categoryId] = {
+                id: categoryId,
+                name: categoryName,
+                products: []
+              };
+            }
+            if (productId) {
+              acc[categoryId].products.push({ id: productId, name: productName });
+            }
+            return acc;
+          }, {});
+    
+          // Преобразуем объект в массив
+          const categoriesArray = Object.values(categories);
+    
+          // Отправляем данные в шаблон
+          res.render('categories', { categories: categoriesArray });
         }
       });
     });
-
-    this.app.post('/delete/categories/:id', (req, res) => {
-      const categoryId = req.params.id;
-      this.db.run('DELETE FROM categories WHERE id = ?', [categoryId], function (err) {
-        if (err) {
-          console.error(err);
-          res.status(500).send('Ошибка при удалении категории');
-        } else {
-          res.redirect('/categories');
-        }
-      });
-    });
+    
 
     // === Маршруты для заказов ===
     this.app.get('/orders', (req, res) => {
