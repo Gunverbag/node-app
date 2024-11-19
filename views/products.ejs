@@ -1,33 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Products List</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Продукты</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .actions button {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .add-button {
+      margin: 10px 0;
+      padding: 8px 15px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+    .add-button:hover {
+      background-color: #45a049;
+    }
+  </style>
 </head>
 <body>
-    <h1>Список продуктов</h1>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Actions</th>
-        </tr>
+  <h1>Продукты</h1>
+
+  <!-- Кнопка добавления продукта -->
+  <a href="/add/products" class="add-button">Добавить продукт</a>
+
+  <!-- Таблица продуктов -->
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Название</th>
+        <th>Цена</th>
+        <th>Категория</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (products.length > 0) { %>
         <% products.forEach(product => { %>
-            <tr>
-                <td><%= product.id %></td>
-                <td><%= product.name %></td>
-                <td><%= product.price %></td>
-                <td>
-                    <a href="/edit/products/<%= product.id %>">Edit</a>
-                    <form action="/delete/products/<%= product.id %>" method="POST" style="display:inline;">
-                        <button type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
+          <tr>
+            <td><%= product.id %></td>
+            <td><%= product.name %></td>
+            <td><%= product.price %></td>
+            <td><%= product.categoryName || 'Без категории' %></td>
+            <td>
+              <div class="actions">
+                <!-- Кнопка редактирования -->
+                <a href="/edit/products/<%= product.id %>">
+                  <button>Редактировать</button>
+                </a>
+                <!-- Кнопка удаления -->
+                <form action="/delete/products/<%= product.id %>" method="POST" style="display: inline;">
+                  <button type="submit" onclick="return confirm('Вы уверены, что хотите удалить этот продукт?');">Удалить</button>
+                </form>
+              </div>
+            </td>
+          </tr>
         <% }) %>
-    </table>
-    <a href="/add/products">Add New Product</a>
+      <% } else { %>
+        <tr>
+          <td colspan="5" style="text-align: center;">Нет продуктов</td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
 </body>
 </html>

@@ -1,0 +1,16 @@
+<h1>Категории</h1>
+<a href="/add/categories">Добавить категорию</a>
+<table>
+  <tr><th>ID</th><th>Название</th><th>Действия</th></tr>
+  <% categories.forEach(category => { %>
+    <tr>
+      <td><%= category.id %></td>
+      <td><%= category.name %></td>
+      <td>
+        <form action="/delete/categories/<%= category.id %>" method="POST">
+          <button type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+  <% }); %>
+</table>
