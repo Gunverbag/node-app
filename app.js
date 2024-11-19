@@ -45,14 +45,20 @@ class App {
     this.db.run(`CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, quantity INTEGER, FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (product_id) REFERENCES products(id));`);
 
     // Создание таблицы категорий
-    this.db.run(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`, (err) => {
-      if (!err) {
-        this.db.run(`INSERT INTO categories (name) VALUES ('Электроника'), ('Одежда'), ('Продукты питания') ON CONFLICT DO NOTHING;`);
+    this.db.run('CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);', (err) => {
+      if (err) {
+        console.error('Ошибка при создании таблицы категорий:', err);
       }
     });
+      
   }
 
   setupRoutes() {
+    //маршрут для основной страницы
+    this.app.get('/', (req, res) => {
+      res.render('index');
+    });
+
     // === Маршруты для пользователей ===
     this.app.get('/users', (req, res) => {
       this.db.all('SELECT * FROM users', [], (err, rows) => {
