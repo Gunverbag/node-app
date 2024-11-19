@@ -1,33 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Users List</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Список пользователей</title>
+  <style>
+    table {
+      width: 80%;
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      text-align: left;
+      padding: 10px;
+    }
+    th {
+      background-color: #4caf50;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    tr:hover {
+      background-color: #ddd;
+    }
+    .actions button {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      margin-right: 5px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .actions button:hover {
+      background-color: #45a049;
+    }
+    .add-user {
+      display: block;
+      width: 200px;
+      margin: 20px auto;
+      text-align: center;
+      background-color: #4caf50;
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+    .add-user:hover {
+      background-color: #45a049;
+    }
+  </style>
 </head>
 <body>
-    <h1>Список пользователей</h1>
-    <table border="1">
+  <h1 style="text-align: center;">Список пользователей</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Имя</th>
+        <th>Email</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(user => { %>
         <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Actions</th>
+          <td><%= user.id %></td>
+          <td><%= user.name %></td>
+          <td><%= user.email %></td>
+          <td class="actions">
+            <a href="/edit/users/<%= user.id %>"><button>Изменить</button></a>
+            <form action="/delete/users/<%= user.id %>" method="POST" style="display: inline;">
+              <button type="submit" style="background-color: #f44336;">Удалить</button>
+            </form>
+          </td>
         </tr>
-        <% users.forEach(user => { %>
-            <tr>
-                <td><%= user.id %></td>
-                <td><%= user.name %></td>
-                <td><%= user.email %></td>
-                <td>
-                    <a href="/edit/users/<%= user.id %>">Edit</a>
-                    <form action="/delete/users/<%= user.id %>" method="POST" style="display:inline;">
-                        <button type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
-        <% }) %>
-    </table>
-    <a href="/add/users">Add New User</a>
+      <% }); %>
+    </tbody>
+  </table>
+  <a href="/add/users" class="add-user">Добавить пользователя</a>
 </body>
 </html>

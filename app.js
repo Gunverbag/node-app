@@ -23,6 +23,11 @@ class App {
 
     // Настройка маршрутов
     this.setupRoutes();
+
+    // Старт сервера
+    this.app.listen(this.PORT, () => {
+      console.log(`Server started on http://localhost:${this.PORT}`);
+    });
   }
 
   configureMiddleware() {
@@ -31,54 +36,18 @@ class App {
 
   createTables() {
     // Создание таблицы пользователей
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        email TEXT
-      );
-    `);
+    this.db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT);`);
 
     // Создание таблицы продуктов
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        price REAL,
-        category_id INTEGER,
-        FOREIGN KEY (category_id) REFERENCES categories(id)
-      );
-    `);
+    this.db.run(`CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, category_id INTEGER, FOREIGN KEY (category_id) REFERENCES categories(id));`);
 
     // Создание таблицы заказов
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        product_id INTEGER,
-        quantity INTEGER,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (product_id) REFERENCES products(id)
-      );
-    `);
+    this.db.run(`CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, quantity INTEGER, FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (product_id) REFERENCES products(id));`);
 
     // Создание таблицы категорий
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT
-      );
-    `, (err) => {
+    this.db.run(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);`, (err) => {
       if (!err) {
-        // Заполнение таблицы категорий примерами
-        this.db.run(`
-          INSERT INTO categories (name)
-          VALUES 
-            ('Электроника'),
-            ('Одежда'),
-            ('Продукты питания')
-          ON CONFLICT DO NOTHING;
-        `);
+        this.db.run(`INSERT INTO categories (name) VALUES ('Электроника'), ('Одежда'), ('Продукты питания') ON CONFLICT DO NOTHING;`);
       }
     });
   }
@@ -191,27 +160,38 @@ class App {
 
     this.app.get('/edit/products/:id', (req, res) => {
       const productId = req.params.id;
-      this.db.get('SELECT * FROM products WHERE id = ?', [productId], (err, row) => {
+      this.db.get('SELECT * FROM products WHERE id = ?', [productId], (err, product) => {
         if (err) {
           console.error(err);
           res.status(500).send('Ошибка при получении данных продукта');
         } else {
-          res.render('editProduct', { product: row });
+          this.db.all('SELECT * FROM categories', [], (catErr, categories) => {
+            if (catErr) {
+              console.error(catErr);
+              res.status(500).send('Ошибка при получении данных категорий');
+            } else {
+              res.render('editProduct', { product, categories });
+            }
+          });
         }
       });
     });
 
     this.app.post('/edit/products/:id', (req, res) => {
       const productId = req.params.id;
-      const { name, price } = req.body;
-      this.db.run('UPDATE products SET name = ?, price = ? WHERE id = ?', [name, price, productId], function (err) {
-        if (err) {
-          console.error(err);
-          res.status(500).send('Ошибка при обновлении продукта');
-        } else {
-          res.redirect('/products');
+      const { name, price, category_id } = req.body;
+      this.db.run(
+        'UPDATE products SET name = ?, price = ?, category_id = ? WHERE id = ?',
+        [name, price, category_id, productId],
+        function (err) {
+          if (err) {
+            console.error(err);
+            res.status(500).send('Ошибка при обновлении продукта');
+          } else {
+            res.redirect('/products');
+          }
         }
-      });
+      );
     });
 
     this.app.post('/delete/products/:id', (req, res) => {
@@ -228,7 +208,12 @@ class App {
 
     // === Маршруты для категорий ===
     this.app.get('/categories', (req, res) => {
-      this.db.all('SELECT * FROM categories', [], (err, rows) => {
+      const query = `
+        SELECT categories.id AS categoryId, categories.name AS categoryName, products.id AS productId, products.name AS productName
+        FROM categories
+        LEFT JOIN products ON categories.id = products.category_id;
+      `;
+      this.db.all(query, [], (err, rows) => {
         if (err) {
           console.error(err);
           res.status(500).send('Ошибка при получении данных категорий');
@@ -238,16 +223,12 @@ class App {
       });
     });
 
-    this.app.get('/add/categories', (req, res) => {
-      res.render('addCategory');
-    });
-
-    this.app.post('/add/categories', (req, res) => {
-      const { name } = req.body;
-      this.db.run('INSERT INTO categories (name) VALUES (?)', [name], function (err) {
+    this.app.post('/delete/categories/:id', (req, res) => {
+      const categoryId = req.params.id;
+      this.db.run('DELETE FROM categories WHERE id = ?', [categoryId], function (err) {
         if (err) {
           console.error(err);
-          res.status(500).send('Ошибка при добавлении категории');
+          res.status(500).send('Ошибка при удалении категории');
         } else {
           res.redirect('/categories');
         }
@@ -259,8 +240,8 @@ class App {
       const query = `
         SELECT orders.id, users.name AS userName, products.name AS productName, orders.quantity
         FROM orders
-        JOIN users ON orders.user_id = users.id
-        JOIN products ON orders.product_id = products.id;
+        LEFT JOIN users ON orders.user_id = users.id
+        LEFT JOIN products ON orders.product_id = products.id;
       `;
       this.db.all(query, [], (err, rows) => {
         if (err) {
@@ -273,15 +254,15 @@ class App {
     });
 
     this.app.get('/add/orders', (req, res) => {
-      this.db.all('SELECT * FROM users', [], (userErr, users) => {
-        if (userErr) {
-          console.error(userErr);
-          res.status(500).send('Ошибка при получении данных пользователей');
+      this.db.all('SELECT * FROM users', [], (err, users) => {
+        if (err) {
+          console.error(err);
+          res.status(500).send('Ошибка при получении пользователей');
         } else {
-          this.db.all('SELECT * FROM products', [], (productErr, products) => {
-            if (productErr) {
-              console.error(productErr);
-              res.status(500).send('Ошибка при получении данных продуктов');
+          this.db.all('SELECT * FROM products', [], (err2, products) => {
+            if (err2) {
+              console.error(err2);
+              res.status(500).send('Ошибка при получении продуктов');
             } else {
               res.render('addOrder', { users, products });
             }
@@ -301,27 +282,8 @@ class App {
         }
       });
     });
-
-    this.app.post('/delete/orders/:id', (req, res) => {
-      const orderId = req.params.id;
-      this.db.run('DELETE FROM orders WHERE id = ?', [orderId], function (err) {
-        if (err) {
-          console.error(err);
-          res.status(500).send('Ошибка при удалении заказа');
-        } else {
-          res.redirect('/orders');
-        }
-      });
-    });
-  }
-
-  start() {
-    this.app.listen(this.PORT, () => {
-      console.log(`Сервер запущен на http://localhost:${this.PORT}`);
-    });
   }
 }
 
-// Создание экземпляра и запуск приложения
-const appInstance = new App();
-appInstance.start();
+// Запускаем приложение
+new App();

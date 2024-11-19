@@ -1,16 +1,73 @@
-<h1>Категории</h1>
-<a href="/add/categories">Добавить категорию</a>
-<table>
-  <tr><th>ID</th><th>Название</th><th>Действия</th></tr>
-  <% categories.forEach(category => { %>
-    <tr>
-      <td><%= category.id %></td>
-      <td><%= category.name %></td>
-      <td>
-        <form action="/delete/categories/<%= category.id %>" method="POST">
-          <button type="submit">Удалить</button>
-        </form>
-      </td>
-    </tr>
-  <% }); %>
-</table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Категории</title>
+  <style>
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #4caf50;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .category-name {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .product-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .product-list li {
+      padding: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">Категории и продукты</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>ID категории</th>
+        <th>Название категории</th>
+        <th>Продукты</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% categories.forEach(category => { %>
+        <tr>
+          <td><%= category.id %></td>
+          <td class="category-name"><%= category.name %></td>
+          <td>
+            <% if (category.products.length > 0) { %>
+              <ul class="product-list">
+                <% category.products.forEach(product => { %>
+                  <li><%= product.name %></li>
+                <% }); %>
+              </ul>
+            <% } else { %>
+              <span>Нет продуктов</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</body>
+</html>

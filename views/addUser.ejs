@@ -1,21 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New User</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Добавить пользователя</title>
+  <style>
+    form {
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+      margin: 50px auto;
+    }
+    label {
+      margin-top: 10px;
+    }
+    input {
+      margin-top: 5px;
+      padding: 10px;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 15px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
 </head>
 <body>
-    <h1>Добавить нового пользователя</h1>
-    <form action="/add/users" method="POST">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" required><br>
+  <h1 style="text-align: center;">Добавить пользователя</h1>
+  <form action="/add/users" method="POST">
+    <label for="name">Имя:</label>
+    <input type="text" id="name" name="name" placeholder="Введите имя" required>
 
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required><br>
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email" placeholder="Введите email" required>
 
-        <button type="submit">Add User</button>
-    </form>
-    <a href="/users">Back to Users List</a>
+    <button type="submit">Добавить</button>
+  </form>
 </body>
 </html>
