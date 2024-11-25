@@ -39,19 +39,18 @@
       background-color: #45a049;
     }
     .btn {
-  display: inline-block;
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  text-decoration: none;
-  border-radius: 5px;
-  font-size: 16px;
-}
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
 
-.btn:hover {
-  background-color: #0056b3;
-}
-
+    .btn:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
@@ -62,6 +61,17 @@
   <a href="/add/products" class="add-button">Добавить продукт</a>
 
   <!-- Таблица продуктов -->
+  <div>
+    <!-- Сортировка по имени -->
+    <a href="/products?sortBy=name&order=<%= order === 'ASC' ? 'DESC' : 'ASC' %>">
+      Сортировать по имени (<%= order === 'ASC' ? 'по возрастанию' : 'по убыванию' %>)
+    </a>
+    |
+    <!-- Сортировка по цене -->
+    <a href="/products?sortBy=price&order=<%= order === 'ASC' ? 'DESC' : 'ASC' %>">
+      Сортировать по цене (<%= order === 'ASC' ? 'по возрастанию' : 'по убыванию' %>)
+    </a>
+  </div>
   <table>
     <thead>
       <tr>
@@ -69,6 +79,7 @@
         <th>Название</th>
         <th>Цена</th>
         <th>Категория</th>
+        <th>Количество на складе</th>
         <th>Действия</th>
       </tr>
     </thead>
@@ -77,9 +88,10 @@
         <% products.forEach(product => { %>
           <tr>
             <td><%= product.id %></td>
-            <td><%= product.name %></td>
+            <td><%= product.productName %></td>
             <td><%= product.price %></td>
             <td><%= product.categoryName || 'Без категории' %></td>
+            <td><%= product.stock %></td> <!-- Вывод количества на складе -->
             <td>
               <div class="actions">
                 <!-- Кнопка редактирования -->
@@ -96,7 +108,7 @@
         <% }) %>
       <% } else { %>
         <tr>
-          <td colspan="5" style="text-align: center;">Нет продуктов</td>
+          <td colspan="6" style="text-align: center;">Нет продуктов</td>
         </tr>
       <% } %>
     </tbody>

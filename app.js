@@ -7,7 +7,7 @@ const methodOverride = require('method-override');
 class App {
   constructor() {
     this.app = express();
-    this.db = new sqlite3.Database('your-database.db');
+    this.db = new sqlite3.Database('bazza.db');
     this.PORT = 3000;
 
     // Включаем поддержку внешних ключей
@@ -40,21 +40,49 @@ class App {
 
   createTables() {
     // Создание таблицы пользователей
-    this.db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT);`);
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        email TEXT
+      );
+    `);
 
     // Создание таблицы продуктов
-    this.db.run(`CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, category_id INTEGER, FOREIGN KEY (category_id) REFERENCES categories(id));`);
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        price REAL,
+        stock INTEGER DEFAULT 0,
+        category_id INTEGER,
+        FOREIGN KEY (category_id) REFERENCES categories(id)
+      );
+    `);
 
     // Создание таблицы заказов
-    this.db.run(`CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, quantity INTEGER, FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (product_id) REFERENCES products(id));`);
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        product_id INTEGER,
+        quantity INTEGER,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      );
+    `);
 
     // Создание таблицы категорий
-    this.db.run('CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);', (err) => {
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT
+      );
+    `, (err) => {
       if (err) {
         console.error('Ошибка при создании таблицы категорий:', err);
       }
     });
-      
   }
 
   setupRoutes() {
@@ -76,32 +104,32 @@ class App {
     });
 
     // Маршрут для добавления пользователя
-this.app.get('/add/users', (req, res) => {
-  res.render('addUser', { errorMessage: null });
-});
+    this.app.get('/add/users', (req, res) => {
+      res.render('addUser', { errorMessage: null });
+    });
 
-this.app.post('/add/users', (req, res) => {
-  const { name, email } = req.body;
+    this.app.post('/add/users', (req, res) => {
+      const { name, email } = req.body;
 
-  this.db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Ошибка при проверке email');
-    } else if (row) {
-      // Если email уже существует, передаем сообщение в шаблон
-      res.render('addUser', { errorMessage: 'Пользователь с таким email уже существует' });
-    } else {
-      this.db.run('INSERT INTO users (name, email) VALUES (?, ?)', [name, email], function (err) {
+      this.db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
         if (err) {
           console.error(err);
-          res.status(500).send('Ошибка при добавлении пользователя');
+          res.status(500).send('Ошибка при проверке email');
+        } else if (row) {
+          // Если email уже существует, передаем сообщение в шаблон
+          res.render('addUser', { errorMessage: 'Пользователь с таким email уже существует' });
         } else {
-          res.redirect('/users');
+          this.db.run('INSERT INTO users (name, email) VALUES (?, ?)', [name, email], function (err) {
+            if (err) {
+              console.error(err);
+              res.status(500).send('Ошибка при добавлении пользователя');
+            } else {
+              res.redirect('/users');
+            }
+          });
         }
       });
-    }
-  });
-});
+    });
 
 
     this.app.get('/edit/users/:id', (req, res) => {
@@ -141,19 +169,33 @@ this.app.post('/add/users', (req, res) => {
       });
     });
 
-    // === Маршруты для продуктов ===
+    // === Продукты ===
     this.app.get('/products', (req, res) => {
+      const sortBy = req.query.sortBy || 'products.name';
+      const order = req.query.order || 'ASC';
+      const validSortColumns = ['products.name', 'price', 'stock'];
+      const validSortOrders = ['ASC', 'DESC'];
+      const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'products.name';
+      const sortDirection = validSortOrders.includes(order) ? order : 'ASC';
+
       const query = `
-        SELECT products.id, products.name, products.price, categories.name AS categoryName
+        SELECT 
+          products.id, 
+          products.name AS productName, 
+          products.price, 
+          products.stock, 
+          categories.name AS categoryName
         FROM products
-        LEFT JOIN categories ON products.category_id = categories.id;
+        LEFT JOIN categories ON products.category_id = categories.id
+        ORDER BY ${sortColumn} ${sortDirection};
       `;
+
       this.db.all(query, [], (err, rows) => {
         if (err) {
           console.error(err);
           res.status(500).send('Ошибка при получении данных продуктов');
         } else {
-          res.render('products', { products: rows });
+          res.render('products', { products: rows, sortBy, order });
         }
       });
     });
@@ -170,15 +212,19 @@ this.app.post('/add/users', (req, res) => {
     });
 
     this.app.post('/add/products', (req, res) => {
-      const { name, price, category_id } = req.body;
-      this.db.run('INSERT INTO products (name, price, category_id) VALUES (?, ?, ?)', [name, price, category_id], function (err) {
-        if (err) {
-          console.error(err);
-          res.status(500).send('Ошибка при добавлении продукта');
-        } else {
-          res.redirect('/products');
+      const { name, price, stock, category_id } = req.body;
+      this.db.run(
+        'INSERT INTO products (name, price, stock, category_id) VALUES (?, ?, ?, ?)',
+        [name, price, stock, category_id],
+        function (err) {
+          if (err) {
+            console.error(err);
+            res.status(500).send('Ошибка при добавлении продукта');
+          } else {
+            res.redirect('/products');
+          }
         }
-      });
+      );
     });
 
     this.app.get('/edit/products/:id', (req, res) => {
@@ -198,14 +244,14 @@ this.app.post('/add/users', (req, res) => {
           });
         }
       });
-    });
+    }); 
 
     this.app.post('/edit/products/:id', (req, res) => {
       const productId = req.params.id;
-      const { name, price, category_id } = req.body;
+      const { name, price, stock, category_id } = req.body;
       this.db.run(
-        'UPDATE products SET name = ?, price = ?, category_id = ? WHERE id = ?',
-        [name, price, category_id, productId],
+        'UPDATE products SET name = ?, price = ?, stock = ?, category_id = ? WHERE id = ?',
+        [name, price, stock, category_id, productId],
         function (err) {
           if (err) {
             console.error(err);
@@ -256,16 +302,16 @@ this.app.post('/add/users', (req, res) => {
             }
             return acc;
           }, {});
-    
+
           // Преобразуем объект в массив
           const categoriesArray = Object.values(categories);
-    
+
           // Отправляем данные в шаблон
           res.render('categories', { categories: categoriesArray });
         }
       });
     });
-    
+
 
     this.app.get('/orders', (req, res) => {
       const query = `
@@ -279,7 +325,7 @@ this.app.post('/add/users', (req, res) => {
         JOIN users ON orders.user_id = users.id
         JOIN products ON orders.product_id = products.id;
       `;
-    
+
       this.db.all(query, [], (err, rows) => {
         if (err) {
           console.error(err);
@@ -288,34 +334,34 @@ this.app.post('/add/users', (req, res) => {
           // Группируем данные по пользователям
           const users = rows.reduce((acc, row) => {
             const { userId, userName, productName, productPrice, quantity } = row;
-    
+
             if (!acc[userId]) {
-              acc[userId] = { 
-                id: userId, 
-                name: userName, 
-                orders: [], 
-                totalPrice: 0 
+              acc[userId] = {
+                id: userId,
+                name: userName,
+                orders: [],
+                totalPrice: 0
               };
             }
-    
-            acc[userId].orders.push({ 
-              productName, 
-              productPrice, 
-              quantity 
+
+            acc[userId].orders.push({
+              productName,
+              productPrice,
+              quantity
             });
-            
+
             acc[userId].totalPrice += productPrice * quantity;
             return acc;
           }, {});
-    
+
           // Преобразуем объект в массив
           const usersArray = Object.values(users);
-    
+
           res.render('orders', { users: usersArray });
         }
       });
     });
-    
+
 
     this.app.get('/add/orders', (req, res) => {
       // Извлекаем пользователей и продукты из базы данных
@@ -335,22 +381,78 @@ this.app.post('/add/users', (req, res) => {
         }
       });
     });
-    
+
     this.app.post('/add/orders', (req, res) => {
       const { user_id, product_id, quantity } = req.body;
-      this.db.run(
-        'INSERT INTO orders (user_id, product_id, quantity) VALUES (?, ?, ?)',
-        [user_id, product_id, quantity],
-        function (err) {
-          if (err) {
-            console.error(err);
-            res.status(500).send('Ошибка при добавлении заказа');
-          } else {
-            res.redirect('/orders');
+      
+      // Логируем входные данные для отладки
+      console.log('Получен запрос на добавление заказа:');
+      console.log('user_id:', user_id);
+      console.log('product_id:', product_id);
+      console.log('quantity:', quantity);
+  
+      if (!user_id || !product_id || !quantity) {
+          return res.status(400).send('Пользователь, продукт или количество не выбраны');
+      }
+  
+      // Проверяем, существует ли пользователь
+      this.db.get('SELECT * FROM users WHERE id = ?', [user_id], (userErr, user) => {
+          if (userErr) {
+              console.error('Ошибка при проверке пользователя:', userErr);
+              return res.status(500).send('Ошибка при проверке пользователя');
           }
-        }
-      );
-    });
+  
+          if (!user) {
+              console.error('Пользователь с id', user_id, 'не найден');
+              return res.status(404).send('Пользователь не найден');
+          }
+  
+          // Проверяем, существует ли продукт
+          this.db.get('SELECT * FROM products WHERE id = ?', [product_id], (productErr, product) => {
+              if (productErr) {
+                  console.error('Ошибка при проверке продукта:', productErr);
+                  return res.status(500).send('Ошибка при проверке продукта');
+              }
+  
+              if (!product) {
+                  console.error('Продукт с id', product_id, 'не найден');
+                  return res.status(404).send('Продукт не найден');
+              }
+  
+              // Проверяем, достаточно ли товара на складе
+              if (quantity > product.stock) {
+                  console.error(`Недостаточное количество товара на складе. Доступно: ${product.stock}, запрашиваемое количество: ${quantity}`);
+                  return res.status(400).send(`Недостаточное количество на складе. Доступно: ${product.stock}`);
+              }
+  
+              // Логируем, что заказ можно добавить
+              console.log('Количество товара на складе достаточно, добавляем заказ');
+  
+              // Обновляем количество товара на складе
+              this.db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [quantity, product_id], (updateErr) => {
+                  if (updateErr) {
+                      console.error('Ошибка при обновлении количества товара на складе:', updateErr);
+                      return res.status(500).send('Ошибка при обновлении количества товара на складе');
+                  }
+  
+                  // Добавляем заказ в базу данных
+                  this.db.run('INSERT INTO orders (user_id, product_id, quantity) VALUES (?, ?, ?)', [user_id, product_id, quantity], (insertErr) => {
+                      if (insertErr) {
+                          console.error('Ошибка при добавлении заказа:', insertErr);
+                          return res.status(500).send('Ошибка при добавлении заказа');
+                      }
+  
+                      console.log('Заказ успешно добавлен');
+                      // Перенаправляем на страницу заказов
+                      res.redirect('/orders');
+                  });
+              });
+          });
+      });
+  });
+  
+  
+
     //удаление заказа
     this.app.get('/delete/order/:id', (req, res) => {
       console.log('Удаление заказа:', req.params.id);
@@ -363,10 +465,10 @@ this.app.post('/add/users', (req, res) => {
           res.redirect('/orders');
         }
       });
-    });    
+    });
 
   }
-  
+
 
 }
 
