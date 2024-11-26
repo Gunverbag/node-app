@@ -75,7 +75,6 @@
   <table>
     <thead>
       <tr>
-        <th>ID</th>
         <th>Название</th>
         <th>Цена</th>
         <th>Категория</th>
@@ -87,7 +86,6 @@
       <% if (products.length > 0) { %>
         <% products.forEach(product => { %>
           <tr>
-            <td><%= product.id %></td>
             <td><%= product.productName %></td>
             <td><%= product.price %></td>
             <td><%= product.categoryName || 'Без категории' %></td>

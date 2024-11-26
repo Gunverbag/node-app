@@ -3,6 +3,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const methodOverride = require('method-override');
+const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
 
 class App {
   constructor() {
@@ -244,7 +247,7 @@ class App {
           });
         }
       });
-    }); 
+    });
 
     this.app.post('/edit/products/:id', (req, res) => {
       const productId = req.params.id;
@@ -384,92 +387,234 @@ class App {
 
     this.app.post('/add/orders', (req, res) => {
       const { user_id, product_id, quantity } = req.body;
-      
+
       // Логируем входные данные для отладки
       console.log('Получен запрос на добавление заказа:');
       console.log('user_id:', user_id);
       console.log('product_id:', product_id);
       console.log('quantity:', quantity);
-  
+
       if (!user_id || !product_id || !quantity) {
-          return res.status(400).send('Пользователь, продукт или количество не выбраны');
+        return res.status(400).send('Пользователь, продукт или количество не выбраны');
       }
-  
+
       // Проверяем, существует ли пользователь
       this.db.get('SELECT * FROM users WHERE id = ?', [user_id], (userErr, user) => {
-          if (userErr) {
-              console.error('Ошибка при проверке пользователя:', userErr);
-              return res.status(500).send('Ошибка при проверке пользователя');
-          }
-  
-          if (!user) {
-              console.error('Пользователь с id', user_id, 'не найден');
-              return res.status(404).send('Пользователь не найден');
-          }
-  
-          // Проверяем, существует ли продукт
-          this.db.get('SELECT * FROM products WHERE id = ?', [product_id], (productErr, product) => {
-              if (productErr) {
-                  console.error('Ошибка при проверке продукта:', productErr);
-                  return res.status(500).send('Ошибка при проверке продукта');
-              }
-  
-              if (!product) {
-                  console.error('Продукт с id', product_id, 'не найден');
-                  return res.status(404).send('Продукт не найден');
-              }
-  
-              // Проверяем, достаточно ли товара на складе
-              if (quantity > product.stock) {
-                  console.error(`Недостаточное количество товара на складе. Доступно: ${product.stock}, запрашиваемое количество: ${quantity}`);
-                  return res.status(400).send(`Недостаточное количество на складе. Доступно: ${product.stock}`);
-              }
-  
-              // Логируем, что заказ можно добавить
-              console.log('Количество товара на складе достаточно, добавляем заказ');
-  
-              // Обновляем количество товара на складе
-              this.db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [quantity, product_id], (updateErr) => {
-                  if (updateErr) {
-                      console.error('Ошибка при обновлении количества товара на складе:', updateErr);
-                      return res.status(500).send('Ошибка при обновлении количества товара на складе');
-                  }
-  
-                  // Добавляем заказ в базу данных
-                  this.db.run('INSERT INTO orders (user_id, product_id, quantity) VALUES (?, ?, ?)', [user_id, product_id, quantity], (insertErr) => {
-                      if (insertErr) {
-                          console.error('Ошибка при добавлении заказа:', insertErr);
-                          return res.status(500).send('Ошибка при добавлении заказа');
-                      }
-  
-                      console.log('Заказ успешно добавлен');
-                      // Перенаправляем на страницу заказов
-                      res.redirect('/orders');
-                  });
-              });
-          });
-      });
-  });
-  
-  
-
-    //удаление заказа
-    this.app.get('/delete/order/:id', (req, res) => {
-      console.log('Удаление заказа:', req.params.id);
-      const orderId = req.params.id;
-      this.db.run('DELETE FROM orders WHERE id = ?', [orderId], function (err) {
-        if (err) {
-          console.error(err);
-          res.status(500).send('Ошибка при удалении заказа');
-        } else {
-          res.redirect('/orders');
+        if (userErr) {
+          console.error('Ошибка при проверке пользователя:', userErr);
+          return res.status(500).send('Ошибка при проверке пользователя');
         }
+
+        if (!user) {
+          console.error('Пользователь с id', user_id, 'не найден');
+          return res.status(404).send('Пользователь не найден');
+        }
+
+        // Проверяем, существует ли продукт
+        this.db.get('SELECT * FROM products WHERE id = ?', [product_id], (productErr, product) => {
+          if (productErr) {
+            console.error('Ошибка при проверке продукта:', productErr);
+            return res.status(500).send('Ошибка при проверке продукта');
+          }
+
+          if (!product) {
+            console.error('Продукт с id', product_id, 'не найден');
+            return res.status(404).send('Продукт не найден');
+          }
+
+          // Проверяем, достаточно ли товара на складе
+          if (quantity > product.stock) {
+            console.error(`Недостаточное количество товара на складе. Доступно: ${product.stock}, запрашиваемое количество: ${quantity}`);
+            return res.status(400).send(`Недостаточное количество на складе. Доступно: ${product.stock}`);
+          }
+
+          // Логируем, что заказ можно добавить
+          console.log('Количество товара на складе достаточно, добавляем заказ');
+
+          // Обновляем количество товара на складе
+          this.db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [quantity, product_id], (updateErr) => {
+            if (updateErr) {
+              console.error('Ошибка при обновлении количества товара на складе:', updateErr);
+              return res.status(500).send('Ошибка при обновлении количества товара на складе');
+            }
+
+            // Добавляем заказ в базу данных
+            this.db.run('INSERT INTO orders (user_id, product_id, quantity) VALUES (?, ?, ?)', [user_id, product_id, quantity], (insertErr) => {
+              if (insertErr) {
+                console.error('Ошибка при добавлении заказа:', insertErr);
+                return res.status(500).send('Ошибка при добавлении заказа');
+              }
+
+              console.log('Заказ успешно добавлен');
+              // Перенаправляем на страницу заказов
+              res.redirect('/orders');
+            });
+          });
+        });
       });
     });
 
+    this.app.get('/export/orders/pdf', (req, res) => {
+      // Абсолютный путь к шрифту
+      const fontPath = path.join(__dirname, 'fonts', 'DejaVuSans.ttf');
+
+      // Проверяем наличие файла шрифта
+      if (!fs.existsSync(fontPath)) {
+        console.error('Шрифт не найден:', fontPath);
+        return res.status(500).send('Шрифт не найден');
+      }
+
+      this.db.all(
+        `SELECT 
+          orders.id, 
+          users.name AS user_name, 
+          products.name AS product_name, 
+          products.price AS product_price,
+          orders.quantity 
+        FROM orders
+        JOIN users ON orders.user_id = users.id
+        JOIN products ON orders.product_id = products.id`,
+        [],
+        (err, rows) => {
+          if (err) {
+            console.error('Ошибка при получении данных для PDF:', err);
+            return res.status(500).send('Ошибка при создании PDF');
+          }
+
+          try {
+            const doc = new PDFDocument({
+              margin: 50,
+              size: 'A4'
+            });
+
+            // Устанавливаем заголовки для загрузки файла
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="orders.pdf"');
+
+            // Передаем поток PDF в ответ
+            doc.pipe(res);
+
+            // Регистрируем шрифт
+            doc.registerFont('DejaVuSans', fontPath);
+
+            // Заголовок документа
+            doc
+              .font(fontPath)
+              .fontSize(20)
+              .text('Список заказов', {
+                align: 'center',
+                underline: true
+              })
+              .moveDown(1.5);
+
+            // Настройка стилей для таблицы
+            doc.fontSize(10)
+              .font(fontPath);
+
+            // Создаем заголовки таблицы
+            const tableTop = doc.y;
+            const headers = [
+              { title: 'ID', width: 30, align: 'left' },
+              { title: 'Пользователь', width: 150, align: 'left' },
+              { title: 'Продукт', width: 150, align: 'left' },
+              { title: 'Цена', width: 70, align: 'right' },
+              { title: 'Количество', width: 70, align: 'right' },
+              { title: 'Сумма', width: 70, align: 'right' }
+            ];
+
+            // Рисуем заголовки
+            let currentX = doc.page.margins.left;
+            headers.forEach(header => {
+              doc.text(header.title, currentX, tableTop, {
+                width: header.width,
+                align: header.align,
+                underline: true
+              });
+              currentX += header.width;
+            });
+
+            // Линия под заголовками
+            doc.moveDown()
+              .strokeColor('#000')
+              .lineWidth(0.5)
+              .moveTo(doc.page.margins.left, doc.y)
+              .lineTo(doc.page.margins.left + 540, doc.y)
+              .stroke();
+
+            doc.moveDown(0.5);
+
+            // Переменная для подсчета итогов
+            let totalOrderSum = 0;
+
+            // Заполняем таблицу данными
+            rows.forEach((row) => {
+              const orderId = row.id || 'N/A';
+              const userName = row.user_name || 'Нет данных';
+              const productName = row.product_name || 'Нет данных';
+              const price = row.product_price || 0;
+              const quantity = row.quantity || 0;
+              const orderSum = price * quantity;
+              totalOrderSum += orderSum;
+
+              // Сбрасываем текущую позицию
+              currentX = doc.page.margins.left;
+
+              // Рисуем ячейки с использованием зарегистрированного шрифта
+              doc
+                .font(fontPath)
+                .text(orderId.toString(), currentX, doc.y, { width: 30, align: 'left' });
+              currentX += 30;
+              doc.text(userName, currentX, doc.y, { width: 150, align: 'left' });
+              currentX += 150;
+              doc.text(productName, currentX, doc.y, { width: 150, align: 'left' });
+              currentX += 150;
+              doc.text(`${price.toFixed(2)} MDL`, currentX, doc.y, { width: 70, align: 'right' });
+              currentX += 70;
+              doc.text(quantity.toString(), currentX, doc.y, { width: 70, align: 'right' });
+              currentX += 70;
+              doc.text(`${orderSum.toFixed(2)} MDL`, currentX, doc.y, { width: 70, align: 'right' });
+
+              doc.moveDown(0.5);
+            });
+
+            // Линия под таблицей
+            doc.moveDown()
+              .strokeColor('#000')
+              .lineWidth(0.5)
+              .moveTo(doc.page.margins.left, doc.y)
+              .lineTo(doc.page.margins.left + 540, doc.y)
+              .stroke()
+              .moveDown(0.5);
+
+            // Итоговая сумма с использованием зарегистрированного шрифта
+            doc.font(fontPath)
+              .fontSize(12)
+              .moveDown(0.5)
+              .text(`Общая сумма заказов: ${totalOrderSum.toFixed(2)} MDL`, {
+                align: 'right',
+                bold: true
+              });
+
+            // Дата формирования отчета
+            doc.font(fontPath)
+              .fontSize(10)
+              .moveDown(0.5)
+              .text(`Сформировано: ${new Date().toLocaleString('ru-RU')}`, {
+                align: 'right',
+                fontSize: 8
+              });
+
+            // Завершаем документ
+            doc.end();
+
+          } catch (pdfError) {
+            console.error('Ошибка при создании PDF:', pdfError);
+            res.status(500).send('Ошибка при создании PDF-документа');
+          }
+        }
+      );
+    });
   }
-
-
 }
 
 // Запускаем приложение

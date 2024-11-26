@@ -59,7 +59,6 @@
   <table>
     <thead>
       <tr>
-        <th>ID категории</th>
         <th>Название категории</th>
         <th>Продукты</th>
       </tr>
@@ -67,7 +66,6 @@
     <tbody>
       <% categories.forEach(category => { %>
         <tr>
-          <td><%= category.id %></td>
           <td class="category-name"><%= category.name %></td>
           <td>
             <% if (category.products.length > 0) { %>
